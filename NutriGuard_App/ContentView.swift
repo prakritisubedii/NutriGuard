@@ -2,20 +2,27 @@
 //  ContentView.swift
 //  NutriGuard_App
 //
-//  Created by Ahmed Shami on 4/24/26.
+//  Root tab container. Three tabs: Ask, Today, Profile.
 //
 
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var state = AppState()
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        TabView {
+            HomeView()
+                .tabItem { Label("Ask", systemImage: "text.bubble.fill") }
+
+            TrackerView()
+                .tabItem { Label("Today", systemImage: "chart.pie.fill") }
+
+            ProfileView()
+                .tabItem { Label("Profile", systemImage: "person.crop.circle.fill") }
         }
-        .padding()
+        .tint(.green)
+        .environmentObject(state)
     }
 }
 
