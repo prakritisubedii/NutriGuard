@@ -48,7 +48,7 @@ The UI never talks to APIs or storage directly. It only talks to the three
 protocols in `Services.swift`. Replace a mock with a real implementation and
 the UI keeps working unchanged.
 
-### AI / API teammate
+### AI / API teammate (Fikir)
 - Replace `MockFoodCheckService` in `Services.swift`.
 - Implement `FoodCheckService.check(question:profile:todaysIntake:)`:
   1. Use **USDA FoodData Central** to look up nutrients.
@@ -60,13 +60,13 @@ the UI keeps working unchanged.
 - Put API keys in a new `Secrets.swift` file — `.gitignore` already excludes
   it so you can't accidentally push them.
 
-### Data / Logic teammate
+### Data / Logic teammate (Sijan)
 - Tune defaults in `UserProfile` (`dailySugarLimitG`, `dailySodiumLimitMg`,
   `dailyCalorieLimit`) based on which conditions the user has.
 - Add new fields to `Nutrients` / `FoodEntry` / `HealthCondition` as needed.
 - Extend the totals math in `AppState` if we want weekly trends, etc.
 
-### Backend / DB lead
+### Backend / DB lead (Prakriti)
 - Replace `UserDefaultsProfileStore` with persistent storage (SwiftData,
   CoreData, or a server) — implements `ProfileStore`.
 - Replace `InMemoryFoodTracker` (currently wipes on every app launch) —
