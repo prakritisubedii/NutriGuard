@@ -120,7 +120,11 @@ The app has a narrow but useful scope. The main features are food checking, pers
 
 <img width="694" height="1228" alt="Screenshot1" src="https://github.com/user-attachments/assets/c1f8248d-22ab-4762-aa37-d31e4ddadddf" />
 
+
+
 <img width="652" height="1216" alt="Screenshot2" src="https://github.com/user-attachments/assets/0b4c1237-456c-4673-892f-7f70fb7756b4" />
+
+
 
 <img width="568" height="1186" alt="Screenshot3" src="https://github.com/user-attachments/assets/cbb97d78-f4c6-4bf1-b8ac-2500df2d4337" />
 
