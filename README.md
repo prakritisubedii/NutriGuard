@@ -116,7 +116,7 @@ The app has a narrow but useful scope. The main features are food checking, pers
 
 ---
 
-## Wireframes
+## Digital Wireframes & Mockups
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/01fa4b2b-da9a-422c-ad97-7a8308f71f8e" width="220" alt="Screenshot1" />
@@ -130,18 +130,6 @@ The app has a narrow but useful scope. The main features are food checking, pers
 1. Ask Screen
 2. Today / Tracker Screen
 3. Profile Screen
-
----
-
-## [BONUS] Digital Wireframes & Mockups
-
-[Add digital wireframes or mockups here if completed.]
-
----
-
-## [BONUS] Interactive Prototype
-
-[Add interactive prototype link here if completed.]
 
 ---
 
