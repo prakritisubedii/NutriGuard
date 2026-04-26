@@ -1,114 +1,228 @@
 # NutriGuard
 
-A Swift / SwiftUI iOS app that tells people with conditions like diabetes or
-hypertension whether a specific food is okay for them, and tracks daily intake
-of sugar, sodium, and calories.
+## Table of Contents
 
-Powered by **USDA FoodData Central** (nutrient lookup) + **Gemini AI**
-(personalized verdicts).
+1. [Overview](#overview)
+2. [Product Spec](#product-spec)
+3. [Wireframes](#wireframes)
+4. [chema](#schema)
 
 ---
 
-## Project structure
+## Overview
 
-The Xcode project is already set up. All Swift code lives in
-`NutriGuard_App/` as a flat folder — no subdirectories, on purpose, so nobody
-has to hunt for files.
+### Description
 
-| File | What's in it | Owner |
+NutriGuard is a Swift / SwiftUI iOS app that helps users with health conditions like diabetes or hypertension decide whether a food is safe for them to eat. Users can ask about a specific food, receive a personalized verdict, and track daily intake of sugar, sodium, and calories.
+
+The app uses USDA FoodData Central for nutrient lookup and Gemini AI for personalized food recommendations.
+
+---
+
+### App Evaluation
+
+**Category:** Health / Nutrition / Lifestyle
+
+**Mobile:**  
+NutriGuard is designed as a mobile iOS app. Since users often need quick food guidance while shopping, cooking, or eating out, mobile access is important.
+
+**Story:**  
+The app helps users make safer food choices based on their personal health needs. Instead of only showing nutrition facts, NutriGuard explains whether a food fits the user's condition and daily limits.
+
+**Market:**  
+The target audience includes people managing conditions such as diabetes, hypertension, or general diet-related health goals. It can also help caregivers or family members who prepare food for others.
+
+**Habit:**  
+NutriGuard is intended for daily use. Users can check foods before eating and track their intake throughout the day.
+
+**Scope:**  
+The app has a narrow but useful scope. The main features are food checking, personalized health verdicts, profile setup, and daily nutrition tracking.
+
+---
+
+## Product Spec
+
+### 1. User Stories
+
+#### Required Must-have Stories
+
+- User can enter a food question such as "Can I eat mac and cheese?"
+- User can receive a verdict explaining whether the food is okay for them.
+- User can view sugar, sodium, and calorie information for a food.
+- User can track today's sugar, sodium, and calorie intake.
+- User can view daily progress toward nutrition limits.
+- User can set or update their profile information.
+- User can select health conditions such as diabetes or hypertension.
+- User can set daily limits for sugar, sodium, and calories.
+
+#### Optional Nice-to-have Stories
+
+- User can save food entries across app sessions.
+- User can view weekly or monthly nutrition trends.
+- User can scan a barcode to look up food.
+- User can save favorite foods.
+- User can receive warning notifications when close to a daily limit.
+- User can get healthier food alternatives from AI.
+- User can share a food report with a doctor or caregiver.
+
+---
+
+### 2. Screen Archetypes
+
+#### Home / Ask Screen
+
+- User can ask whether a food is safe to eat.
+- User can view an AI-generated verdict.
+- User can view the reason behind the verdict.
+- User can see nutrient details for the food.
+
+#### Today / Tracker Screen
+
+- User can view today's logged food entries.
+- User can see total sugar, sodium, and calories consumed.
+- User can view progress toward daily limits.
+
+#### Profile Screen
+
+- User can enter their name.
+- User can select health conditions.
+- User can update daily nutrition limits.
+- User can save profile settings.
+
+---
+
+### 3. Navigation
+
+#### Tab Navigation
+
+- **Ask:** Main food question and verdict screen.
+- **Today:** Daily intake tracker screen.
+- **Profile:** User health profile and limit settings screen.
+
+#### Flow Navigation
+
+**Ask Screen**
+- User enters a food question.
+- Leads to verdict result card on the same screen.
+- User can add checked food to today's tracker.
+
+**Today Screen**
+- User views daily nutrition totals.
+- User can review logged foods.
+
+**Profile Screen**
+- User edits conditions and daily limits.
+- Leads back to Ask or Today with updated profile data.
+
+---
+
+## Wireframes
+
+[Add picture of your hand-sketched wireframes in this section.]
+
+### Required Screens to Sketch
+
+1. Ask Screen
+2. Today / Tracker Screen
+3. Profile Screen
+
+---
+
+## [BONUS] Digital Wireframes & Mockups
+
+[Add digital wireframes or mockups here if completed.]
+
+---
+
+## [BONUS] Interactive Prototype
+
+[Add interactive prototype link here if completed.]
+
+---
+
+## Schema
+
+### Models
+
+#### UserProfile
+
+| Property | Type | Description |
 |---|---|---|
-| `NutriGuard_AppApp.swift` | App entry point (`@main`) | Frontend |
-| `ContentView.swift` | Root `TabView` (Ask / Today / Profile) | Frontend |
-| `HomeView.swift` | "Can I eat ___?" question + verdict card | Frontend |
-| `TrackerView.swift` | Today's intake — progress rings + log | Frontend |
-| `ProfileView.swift` | Conditions, name, daily limits | Frontend |
-| `Models.swift` | Shared data structures (`UserProfile`, `Nutrients`, `FoodEntry`, `FoodCheckResult`, `HealthCondition`) | Data / Logic |
-| `Services.swift` | Service protocols + `AppState` + mock implementations | AI/API + Backend |
+| name | String | User's name |
+| conditions | Array | Health conditions selected by the user |
+| dailySugarLimitG | Double | User's daily sugar limit in grams |
+| dailySodiumLimitMg | Double | User's daily sodium limit in milligrams |
+| dailyCalorieLimit | Double | User's daily calorie limit |
 
-**Tip:** Open `Services.swift` first — it has a banner at the top showing
-exactly which mock each teammate replaces.
+#### HealthCondition
 
----
+| Property | Type | Description |
+|---|---|---|
+| name | String | Name of the health condition |
+| description | String | Short explanation of the condition |
 
-## How to open and run
+#### Nutrients
 
-1. Double-click `NutriGuard_App.xcodeproj` (in the project root).
-2. In the top toolbar, pick any iPhone simulator.
-3. Press ▶︎ (or Cmd+R).
+| Property | Type | Description |
+|---|---|---|
+| sugarG | Double | Sugar amount in grams |
+| sodiumMg | Double | Sodium amount in milligrams |
+| calories | Double | Calories in the food |
 
-The Xcode project uses *synchronized file groups*, which means **any new `.swift`
-file you drop into `NutriGuard_App/` is automatically added to the build** — no
-manual "Add to target" step.
+#### FoodEntry
 
----
+| Property | Type | Description |
+|---|---|---|
+| foodName | String | Name of the logged food |
+| servingDescription | String | Serving size or portion description |
+| nutrients | Nutrients | Nutrient values for the food |
+| date | Date | Date the food was logged |
 
-## Team handoff — where to plug things in
+#### FoodCheckResult
 
-The UI never talks to APIs or storage directly. It only talks to the three
-protocols in `Services.swift`. Replace a mock with a real implementation and
-the UI keeps working unchanged.
-
-### AI / API teammate (Fikir)
-- Replace `MockFoodCheckService` in `Services.swift`.
-- Implement `FoodCheckService.check(question:profile:todaysIntake:)`:
-  1. Use **USDA FoodData Central** to look up nutrients.
-     Endpoint: `https://api.nal.usda.gov/fdc/v1/foods/search`
-  2. Build a Gemini prompt from the user's question + their conditions +
-     today's running totals + their daily limits.
-  3. Parse Gemini's response into a `FoodCheckResult`
-     (`verdict`, `reason`, `nutrients`, `servingDescription`).
-- Put API keys in a new `Secrets.swift` file — `.gitignore` already excludes
-  it so you can't accidentally push them.
-
-### Data / Logic teammate (Sijan)
-- Tune defaults in `UserProfile` (`dailySugarLimitG`, `dailySodiumLimitMg`,
-  `dailyCalorieLimit`) based on which conditions the user has.
-- Add new fields to `Nutrients` / `FoodEntry` / `HealthCondition` as needed.
-- Extend the totals math in `AppState` if we want weekly trends, etc.
-
-### Backend / DB lead (Prakriti)
-- Replace `UserDefaultsProfileStore` with persistent storage (SwiftData,
-  CoreData, or a server) — implements `ProfileStore`.
-- Replace `InMemoryFoodTracker` (currently wipes on every app launch) —
-  implements `FoodTracker`.
-- Wire your real implementations into `AppState`'s initializer in
-  `Services.swift` (or pass them in from `ContentView`).
-- Manage the GitHub Project board and issues.
-
-### Frontend (Ahmed)
-- All UI lives in the `*View.swift` files.
-- The shared `AppState` (in `Services.swift`) is injected via
-  `.environmentObject` from `ContentView`.
+| Property | Type | Description |
+|---|---|---|
+| verdict | String | Result such as safe, caution, or avoid |
+| reason | String | Explanation for the verdict |
+| nutrients | Nutrients | Nutrient information for the food |
+| servingDescription | String | Serving size used for the result |
 
 ---
 
-## What's mocked right now
+## Networking
 
-So the app runs end-to-end while everyone builds in parallel, three things in
-`Services.swift` are placeholders:
+### Ask Screen
 
-1. **`MockFoodCheckService`** — keyword-matches the question (`"milk"`,
-   `"mac"`, `"salad"`, etc.) and returns a hardcoded verdict. Replace with
-   real Gemini + USDA.
-2. **`UserDefaultsProfileStore`** — uses iOS `UserDefaults`. Works, but a
-   real DB is better long-term.
-3. **`InMemoryFoodTracker`** — holds entries in an array; **resets on every
-   launch**. Replace with persistent storage.
+- `[GET] USDA FoodData Central /foods/search`
+  - Used to search for food nutrition data.
+  - Example endpoint:
+    `https://api.nal.usda.gov/fdc/v1/foods/search`
 
-Each one has a comment above it saying who's responsible for replacing it.
+- `[POST] Gemini AI request`
+  - Sends the user's food question, health conditions, daily limits, and current intake.
+  - Receives a personalized verdict and explanation.
+
+### Today / Tracker Screen
+
+- No external network request required if using local storage.
+- Optional future backend:
+  - `[GET] /foodEntries`
+  - `[POST] /foodEntries`
+  - `[DELETE] /foodEntries/:id`
+
+### Profile Screen
+
+- No external network request required if using local storage.
+- Optional future backend:
+  - `[GET] /profile`
+  - `[POST] /profile`
+  - `[PUT] /profile`
 
 ---
 
-## Why is `.gitignore` here?
+## API Request Snippets
 
-It tells git which files **not** to push to GitHub:
+### USDA Food Search
 
-- Xcode build junk (`DerivedData/`, `build/`, `*.dSYM`).
-- Per-developer Xcode state (`xcuserdata/`, `*.xcuserstate`) — without this,
-  every time someone opens the project Xcode rewrites these files and you
-  get merge conflicts.
-- macOS noise (`.DS_Store`).
-- **API keys** (`Secrets.swift`, `.env`, `GoogleService-Info.plist`) — must
-  never be pushed where a stranger could grab them.
-
-**Don't delete `.gitignore`.**
+```swift
+GET https://api.nal.usda.gov/fdc/v1/foods/search?query=FOOD_NAME&api_key=API_KEY
