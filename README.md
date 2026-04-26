@@ -118,7 +118,7 @@ The app has a narrow but useful scope. The main features are food checking, pers
 
 ## Wireframes
 
-<img width="694" height="1228" alt="Screenshot1" src="https://github.com/user-attachments/assets/c1f8248d-22ab-4762-aa37-d31e4ddadddf" />
+<img width="600" height="600" alt="Screenshot1" src="https://github.com/user-attachments/assets/c1f8248d-22ab-4762-aa37-d31e4ddadddf" />
 
 
 
