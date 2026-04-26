@@ -118,15 +118,11 @@ The app has a narrow but useful scope. The main features are food checking, pers
 
 ## Wireframes
 
-<img width="600" height="600" alt="Screenshot1" src="https://github.com/user-attachments/assets/c1f8248d-22ab-4762-aa37-d31e4ddadddf" />
-
-
-
-<img width="652" height="1216" alt="Screenshot2" src="https://github.com/user-attachments/assets/0b4c1237-456c-4673-892f-7f70fb7756b4" />
-
-
-
-<img width="568" height="1186" alt="Screenshot3" src="https://github.com/user-attachments/assets/cbb97d78-f4c6-4bf1-b8ac-2500df2d4337" />
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/01fa4b2b-da9a-422c-ad97-7a8308f71f8e" width="220" alt="Screenshot1" />
+  <img src="https://github.com/user-attachments/assets/0b4c1237-456c-4673-892f-7f70fb7756b4" width="220" alt="Screenshot2" />
+  <img src="https://github.com/user-attachments/assets/cbb97d78-f4c6-4bf1-b8ac-2500df2d4337" width="220" alt="Screenshot3" />
+</p>
 
 
 ### Required Screens to Sketch
