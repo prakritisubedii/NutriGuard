@@ -97,18 +97,25 @@ struct RealFoodCheckService: FoodCheckService {
         {"verdict": "yes" or "caution" or "no", "reason": "2-3 sentence personalized explanation referencing their specific conditions and remaining limits"}
         """
 
-        let url = URL(string: "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=\(Secrets.geminiKey)")!
+        let url = URL(string: "https://integrate.api.nvidia.com/v1/chat/completions")!
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let body: [String: Any] = ["contents": [["parts": [["text": prompt]]]]]
+        req.setValue("Bearer \(Secrets.nvidiaKey)", forHTTPHeaderField: "Authorization")
+        let body: [String: Any] = [
+            "model": "deepseek-ai/deepseek-v4-pro",
+            "messages": [["role": "user", "content": prompt]],
+            "temperature": 0.7,
+            "max_tokens": 500,
+            "stream": false
+        ]
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, _) = try await URLSession.shared.data(for: req)
-        print("🔵 Gemini raw response: \(String(data: data, encoding: .utf8) ?? "nil")")
-        let gemini = try JSONDecoder().decode(GeminiResponse.self, from: data)
+        print("🔵 NVIDIA raw response: \(String(data: data, encoding: .utf8) ?? "nil")")
+        let nvidiaResponse = try JSONDecoder().decode(NvidiaResponse.self, from: data)
 
-        guard let raw = gemini.candidates.first?.content.parts.first?.text else {
+        guard let raw = nvidiaResponse.choices.first?.message.content else {
             throw URLError(.badServerResponse)
         }
 
@@ -143,10 +150,9 @@ private struct USDASearchResponse: Codable { let foods: [USDAFood] }
 private struct USDAFood: Codable { let description: String; let foodNutrients: [USDANutrient] }
 private struct USDANutrient: Codable { let nutrientName: String; let value: Double?; let unitName: String? }
 
-// MARK: - Gemini response models
+// MARK: - NVIDIA response models
 
-private struct GeminiResponse: Codable { let candidates: [GeminiCandidate] }
-private struct GeminiCandidate: Codable { let content: GeminiContent }
-private struct GeminiContent: Codable { let parts: [GeminiPart] }
-private struct GeminiPart: Codable { let text: String }
+private struct NvidiaResponse: Codable { let choices: [NvidiaChoice] }
+private struct NvidiaChoice: Codable { let message: NvidiaMessage }
+private struct NvidiaMessage: Codable { let content: String }
 private struct GeminiVerdict: Codable { let verdict: String; let reason: String }
