@@ -60,7 +60,7 @@ final class AppState: ObservableObject {
 
     init(profileStore: ProfileStore = UserDefaultsProfileStore(),
          tracker: FoodTracker = InMemoryFoodTracker(),
-         checker: FoodCheckService = MockFoodCheckService()) {
+         checker: FoodCheckService = RealFoodCheckService()) {
         self.profileStore = profileStore
         self.tracker = tracker
         self.checker = checker
