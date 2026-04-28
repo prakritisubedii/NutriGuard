@@ -21,7 +21,7 @@ https://www.loom.com/share/70855f60276a4ea0959709f03f0b5eb8
 
 NutriGuard is a Swift / SwiftUI iOS app that helps users with health conditions like diabetes or hypertension decide whether a food is safe for them to eat. Users can ask about a specific food, receive a personalized verdict, and track daily intake of sugar, sodium, and calories.
 
-The app uses USDA FoodData Central for nutrient lookup and Gemini AI for personalized food recommendations.
+The app uses USDA FoodData Central for nutrient lookup and NVIDIA Llama 3.1 for personalized food recommendations.
 
 ---
 
@@ -197,7 +197,7 @@ The app has a narrow but useful scope. The main features are food checking, pers
   - Example endpoint:
     `https://api.nal.usda.gov/fdc/v1/foods/search`
 
-- `[POST] Gemini AI request`
+- `[POST] NVIDIA Llama 3.1 request`
   - Sends the user's food question, health conditions, daily limits, and current intake.
   - Receives a personalized verdict and explanation.
 
