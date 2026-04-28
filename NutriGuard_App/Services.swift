@@ -100,8 +100,8 @@ final class AppState: ObservableObject {
         let ps = profileStore ?? UserDefaultsProfileStore()
         let tr = tracker      ?? InMemoryFoodTracker()
         let bs = bloodSugarStore ?? InMemoryBloodSugarStore()
-        let ch = checker      ?? MockFoodCheckService()
-        let an = analyzer     ?? MockAnalyzeService()
+        let ch = checker      ?? NvidiaFoodCheckService()
+        let an = analyzer     ?? NvidiaAnalyzeService()
         self.profileStore      = ps
         self.tracker           = tr
         self.bloodSugarStore   = bs
@@ -195,60 +195,160 @@ final class AppState: ObservableObject {
     }
 }
 
-// MARK: - Mock implementations (replace these)
+// MARK: - NVIDIA API Client (shared)
 
-/// AI/API teammate: replace this with a real Gemini + USDA backed service.
-/// The mock just gives plausible-looking answers so the UI is testable.
-struct MockFoodCheckService: FoodCheckService {
+/// Shared HTTP client for NVIDIA's OpenAI-compatible chat completions endpoint.
+enum NvidiaAPIClient {
+    static let apiKey = "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"
+    static let endpoint = URL(string: "https://integrate.api.nvidia.com/v1/chat/completions")!
+    static let model = "meta/llama-3.1-70b-instruct"
+
+    struct ChatMessage: Codable {
+        let role: String
+        let content: String
+    }
+
+    struct RequestBody: Codable {
+        let model: String
+        let messages: [ChatMessage]
+        let temperature: Double
+        let max_tokens: Int
+    }
+
+    struct ResponseBody: Codable {
+        struct Choice: Codable {
+            struct Message: Codable {
+                let content: String
+            }
+            let message: Message
+        }
+        let choices: [Choice]
+    }
+
+    /// Send a chat completion request and return the assistant's text response.
+    static func chat(system: String, user: String, temperature: Double = 0.3, maxTokens: Int = 1500) async throws -> String {
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30
+
+        let body = RequestBody(
+            model: model,
+            messages: [
+                ChatMessage(role: "system", content: system),
+                ChatMessage(role: "user", content: user)
+            ],
+            temperature: temperature,
+            max_tokens: maxTokens
+        )
+        request.httpBody = try JSONEncoder().encode(body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+            let responseText = String(data: data, encoding: .utf8) ?? "No response body"
+            throw NSError(domain: "NvidiaAPI", code: statusCode,
+                          userInfo: [NSLocalizedDescriptionKey: "API error (\(statusCode)): \(responseText)"])
+        }
+
+        let decoded = try JSONDecoder().decode(ResponseBody.self, from: data)
+        guard let content = decoded.choices.first?.message.content else {
+            throw NSError(domain: "NvidiaAPI", code: 0,
+                          userInfo: [NSLocalizedDescriptionKey: "Empty response from AI"])
+        }
+        return content
+    }
+}
+
+// MARK: - NVIDIA Food Check Service
+
+struct NvidiaFoodCheckService: FoodCheckService {
     func check(question: String,
                profile: UserProfile,
                todaysIntake: Nutrients) async throws -> FoodCheckResult {
-        try? await Task.sleep(nanoseconds: 600_000_000)
 
-        let foodName = question
-            .replacingOccurrences(of: "can i eat", with: "", options: .caseInsensitive)
-            .replacingOccurrences(of: "can i drink", with: "", options: .caseInsensitive)
-            .replacingOccurrences(of: "?", with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .capitalized
+        let conditions = profile.conditions.isEmpty
+            ? "None reported"
+            : profile.conditions.map { $0.rawValue }.joined(separator: ", ")
 
-        let lower = question.lowercased()
-        let mockNutrients: Nutrients
-        let verdict: FoodCheckResult.Verdict
-        let reason: String
-        let serving: String
+        let system = """
+        You are NutriGuard, a clinical nutrition assistant. The user will ask about eating a specific food, possibly with a quantity (e.g. "Can I eat 2 slices of pizza?" or "200g of rice").
 
-        if lower.contains("water") || lower.contains("salad") {
-            mockNutrients = Nutrients(calories: 15, sugarG: 1, sodiumMg: 10, carbsG: 3, fatG: 0, proteinG: 1)
-            verdict = .yes
-            reason = "Low in sugar and sodium — safe for your conditions and well within today's limits."
-            serving = "1 serving"
-        } else if lower.contains("milk") {
-            mockNutrients = Nutrients(calories: 150, sugarG: 12, sodiumMg: 105, carbsG: 12, fatG: 8, proteinG: 8)
-            verdict = profile.conditions.contains(.diabetes) ? .caution : .yes
-            reason = profile.conditions.contains(.diabetes)
-                ? "Whole milk has 12g of natural sugar (lactose). You've already had \(Int(todaysIntake.sugarG))g today — one cup is OK but watch the rest of the day."
-                : "Reasonable choice — moderate calories and protein."
-            serving = "1 cup (240 ml)"
-        } else if lower.contains("mac") || lower.contains("cheese") || lower.contains("pizza") {
-            mockNutrients = Nutrients(calories: 410, sugarG: 6, sodiumMg: 820, carbsG: 48, fatG: 18, proteinG: 14)
-            verdict = profile.conditions.contains(.hypertension) ? .no : .caution
-            reason = profile.conditions.contains(.hypertension)
-                ? "One serving has ~820mg sodium — that's already 35% of your daily limit and you've had \(Int(todaysIntake.sodiumMg))mg today. Better to skip or pick a low-sodium option."
-                : "High in sodium and refined carbs. Fine occasionally, but not every day."
-            serving = "1 cup (220 g)"
+        RULES:
+        1. Identify the food AND quantity from the question. If no quantity is given, assume 1 standard serving.
+        2. Estimate the nutritional content for THAT SPECIFIC QUANTITY.
+        3. Consider the user's health conditions and what they've already eaten today.
+        4. Give a verdict: "yes" (safe), "caution" (OK in moderation), or "no" (avoid).
+
+        Respond in EXACTLY this JSON format, no extra text:
+        {
+          "foodName": "Name of the food",
+          "serving": "quantity description (e.g. 2 slices, 200g, 1 cup)",
+          "verdict": "yes|caution|no",
+          "reason": "2-3 sentence personalized explanation considering their conditions and today's intake",
+          "calories": 0,
+          "sugarG": 0,
+          "sodiumMg": 0,
+          "carbsG": 0,
+          "fatG": 0,
+          "proteinG": 0
+        }
+        """
+
+        let user = """
+        User's health conditions: \(conditions)
+        Daily limits: \(Int(profile.dailyCalorieLimit)) kcal, \(Int(profile.dailySugarLimitG))g sugar, \(Int(profile.dailySodiumLimitMg))mg sodium
+        Already eaten today: \(Int(todaysIntake.calories)) kcal, \(Int(todaysIntake.sugarG))g sugar, \(Int(todaysIntake.sodiumMg))mg sodium, \(Int(todaysIntake.carbsG))g carbs, \(Int(todaysIntake.fatG))g fat, \(Int(todaysIntake.proteinG))g protein
+
+        Question: \(question)
+        """
+
+        let raw = try await NvidiaAPIClient.chat(system: system, user: user, temperature: 0.2, maxTokens: 600)
+        return try parseFoodCheckResponse(raw, fallbackQuestion: question)
+    }
+
+    private func parseFoodCheckResponse(_ raw: String, fallbackQuestion: String) throws -> FoodCheckResult {
+        // Extract JSON from response (handle markdown code blocks)
+        let jsonString: String
+        if let start = raw.firstIndex(of: "{"), let end = raw.lastIndex(of: "}") {
+            jsonString = String(raw[start...end])
         } else {
-            mockNutrients = Nutrients(calories: 200, sugarG: 8, sodiumMg: 300, carbsG: 25, fatG: 7, proteinG: 6)
-            verdict = .caution
-            reason = "Moderate nutritional impact. Real reasoning will come from Gemini once the AI service is wired in."
-            serving = "1 serving"
+            jsonString = raw
         }
 
+        guard let data = jsonString.data(using: .utf8) else {
+            throw NSError(domain: "Parse", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
+        }
+
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+
+        let foodName = json["foodName"] as? String ?? fallbackQuestion.capitalized
+        let serving  = json["serving"] as? String ?? "1 serving"
+        let reason   = json["reason"] as? String ?? "Unable to analyze this food."
+
+        let verdictStr = (json["verdict"] as? String ?? "caution").lowercased()
+        let verdict: FoodCheckResult.Verdict
+        switch verdictStr {
+        case "yes":  verdict = .yes
+        case "no":   verdict = .no
+        default:     verdict = .caution
+        }
+
+        let nutrients = Nutrients(
+            calories: (json["calories"] as? Double) ?? Double(json["calories"] as? Int ?? 0),
+            sugarG:   (json["sugarG"] as? Double) ?? Double(json["sugarG"] as? Int ?? 0),
+            sodiumMg: (json["sodiumMg"] as? Double) ?? Double(json["sodiumMg"] as? Int ?? 0),
+            carbsG:   (json["carbsG"] as? Double) ?? Double(json["carbsG"] as? Int ?? 0),
+            fatG:     (json["fatG"] as? Double) ?? Double(json["fatG"] as? Int ?? 0),
+            proteinG: (json["proteinG"] as? Double) ?? Double(json["proteinG"] as? Int ?? 0)
+        )
+
         return FoodCheckResult(
-            foodName: foodName.isEmpty ? "This food" : foodName,
+            foodName: foodName,
             verdict: verdict,
             reason: reason,
-            nutrients: mockNutrients,
+            nutrients: nutrients,
             servingDescription: serving
         )
     }
@@ -499,49 +599,110 @@ final class InMemoryFoodTracker: FoodTracker {
     }
 }
 
-// MARK: - Analyze Service (NVIDIA API stub)
+// MARK: - NVIDIA Analyze Service
 
-/// Replace this with a real NVIDIA API-backed service.
-/// The real implementation should POST to the NVIDIA endpoint with the user's
-/// food log, blood sugar data, and profile, then parse the AI response into
-/// an AnalysisReport.
-struct MockAnalyzeService: AnalyzeService {
+struct NvidiaAnalyzeService: AnalyzeService {
     func analyze(entries: [FoodEntry],
                  totals: Nutrients,
                  profile: UserProfile,
                  bloodSugar: [BloodSugarEntry]) async throws -> AnalysisReport {
-        // Simulate network delay
-        try? await Task.sleep(nanoseconds: 1_200_000_000)
 
-        let totalCal = Int(totals.calories)
-        let totalSugar = Int(totals.sugarG)
-        let totalSodium = Int(totals.sodiumMg)
+        let conditions = profile.conditions.isEmpty
+            ? "None reported"
+            : profile.conditions.map { $0.rawValue }.joined(separator: ", ")
+
+        // Build food log summary
+        let foodLog: String
+        if entries.isEmpty {
+            foodLog = "No food logged for this day."
+        } else {
+            foodLog = entries.map { e in
+                let t = e.loggedAt.formatted(.dateTime.hour().minute())
+                return "- \(t): \(e.name) (\(e.servingDescription)) — \(Int(e.nutrients.calories)) kcal, \(Int(e.nutrients.sugarG))g sugar, \(Int(e.nutrients.sodiumMg))mg sodium"
+            }.joined(separator: "\n")
+        }
+
+        // Build blood sugar summary (last 7 days)
+        let recentBS: String
+        if bloodSugar.isEmpty {
+            recentBS = "No blood sugar readings available."
+        } else {
+            let cal = Calendar.current
+            let cutoff = cal.date(byAdding: .day, value: -7, to: Date())!
+            let recent = bloodSugar.filter { $0.recordedAt >= cutoff }
+                .sorted { $0.recordedAt < $1.recordedAt }
+            recentBS = recent.map { e in
+                let t = e.recordedAt.formatted(.dateTime.weekday(.abbreviated).hour().minute())
+                let cat = e.category.label
+                return "- \(t): \(Int(e.level)) mg/dL (\(e.context.rawValue)) — \(cat)"
+            }.joined(separator: "\n")
+        }
+
+        let system = """
+        You are NutriGuard Health Analyzer. Analyze the user's daily food intake, blood sugar readings, and health profile to provide a comprehensive health report.
+
+        RULES:
+        1. Identify GOOD habits the user is following.
+        2. Identify BAD habits or concerning patterns.
+        3. If blood sugar is consistently high (>180 after meals or >130 fasting) for 3+ days in a row, recommend the user talk to their doctor.
+        4. Provide actionable suggestions for the remaining time of the day or the next day.
+        5. Suggest specific meals that would help improve their health given their conditions.
+
+        Respond in EXACTLY this JSON format, no extra text:
+        {
+          "summary": "2-3 sentence overview of overall health status for this day",
+          "goodHabits": ["habit 1", "habit 2"],
+          "badHabits": ["concern 1", "concern 2"],
+          "suggestions": ["suggestion 1", "suggestion 2", "suggestion 3"],
+          "mealPlan": "Specific meal suggestions for remaining day or next day"
+        }
+        """
+
+        let user = """
+        PATIENT PROFILE:
+        Health conditions: \(conditions)
+        Daily limits: \(Int(profile.dailyCalorieLimit)) kcal, \(Int(profile.dailySugarLimitG))g sugar, \(Int(profile.dailySodiumLimitMg))mg sodium
+
+        TODAY'S FOOD LOG:
+        Total: \(Int(totals.calories)) kcal, \(Int(totals.sugarG))g sugar, \(Int(totals.sodiumMg))mg sodium, \(Int(totals.carbsG))g carbs, \(Int(totals.fatG))g fat, \(Int(totals.proteinG))g protein
+        \(foodLog)
+
+        BLOOD SUGAR READINGS (last 7 days):
+        \(recentBS)
+
+        Please analyze and provide your report.
+        """
+
+        let raw = try await NvidiaAPIClient.chat(system: system, user: user, temperature: 0.4, maxTokens: 1200)
+        return try parseAnalysisResponse(raw)
+    }
+
+    private func parseAnalysisResponse(_ raw: String) throws -> AnalysisReport {
+        let jsonString: String
+        if let start = raw.firstIndex(of: "{"), let end = raw.lastIndex(of: "}") {
+            jsonString = String(raw[start...end])
+        } else {
+            jsonString = raw
+        }
+
+        guard let data = jsonString.data(using: .utf8) else {
+            throw NSError(domain: "Parse", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
+        }
+
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+
+        let summary = json["summary"] as? String ?? "Analysis complete."
+        let goodHabits = json["goodHabits"] as? [String] ?? []
+        let badHabits = json["badHabits"] as? [String] ?? []
+        let suggestions = json["suggestions"] as? [String] ?? []
+        let mealPlan = json["mealPlan"] as? String ?? ""
 
         return AnalysisReport(
-            summary: "Based on your food log (\(totalCal) kcal, \(totalSugar)g sugar, \(totalSodium)mg sodium) and blood sugar readings, here's your personalized analysis.",
-            goodHabits: [
-                "Good protein intake from chicken and salmon",
-                "Including fruits and vegetables regularly",
-                "Balanced meal timing throughout the day",
-                "Oatmeal is an excellent low-GI breakfast choice"
-            ],
-            badHabits: [
-                "Blood sugar spikes after meals suggest portion control needed",
-                "Sodium intake is approaching daily limits",
-                "Sugar from yogurt and fruit snacks adds up"
-            ],
-            suggestions: [
-                "Consider adding more fiber-rich foods to slow sugar absorption",
-                "Try reducing portion sizes at dinner to lower post-meal blood sugar",
-                "Swap Greek yogurt toppings to nuts instead of berries to cut sugar",
-                "Add a short walk after meals to help manage blood sugar spikes",
-                "Stay hydrated — aim for 8 glasses of water daily"
-            ],
-            mealPlan: "🍽 Suggested remaining meals:\n\n" +
-                "Lunch: Grilled fish with steamed broccoli & quinoa (low GI, high protein)\n" +
-                "Snack: Handful of almonds + cucumber slices with hummus\n" +
-                "Dinner: Turkey stir-fry with bell peppers & brown rice (keep portion to 1 cup rice)\n\n" +
-                "Tomorrow's breakfast: Steel-cut oats with chia seeds & walnuts (no added sugar)"
+            summary: summary,
+            goodHabits: goodHabits,
+            badHabits: badHabits,
+            suggestions: suggestions,
+            mealPlan: mealPlan
         )
     }
 }

@@ -19,6 +19,7 @@ struct DashboardView: View {
     @State private var showCalendarSheet   = false
     @State private var showAnalyzeSheet    = false
     @State private var chartRange: ChartRange = .week
+    @State private var chart30dPosition: Date = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
 
     enum ChartRange: String, CaseIterable {
         case day = "24 h", week = "7 d", month = "30 d"
@@ -66,7 +67,7 @@ struct DashboardView: View {
             QuickFoodEntrySheet { state.log($0) }
         }
         .sheet(isPresented: $showCalendarSheet) {
-            CalendarPickerSheet(selectedDate: $state.selectedDate)
+            CalendarPickerSheet(initialDate: state.selectedDate) { state.selectedDate = $0 }
         }
         .sheet(isPresented: $showAnalyzeSheet) {
             AnalyzeReportSheet()
@@ -147,64 +148,39 @@ struct DashboardView: View {
         .padding(.vertical, 28)
     }
 
+    @ViewBuilder
     private var bloodSugarChart: some View {
-        Group {
-            if chartRange == .day {
-                bloodSugarChart24h
-            } else {
-                bloodSugarChartRange
-            }
+        if chartRange == .day {
+            bloodSugarChart24h
+        } else if chartRange == .week {
+            bloodSugarChart7d
+        } else {
+            bloodSugarChart30d
         }
     }
 
-    /// 24h: individual data points with time labels like "7:00 AM"
+    /// 24h: 6 AM → 6 AM window, straight lines only between 2+ points
     private var bloodSugarChart24h: some View {
-        Chart {
-            RectangleMark(yStart: .value("Low", 70), yEnd: .value("High", 100))
-                .foregroundStyle(Color.green.opacity(0.07))
-            RuleMark(y: .value("Low threshold", 70))
-                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                .foregroundStyle(Color.green.opacity(0.5))
-            RuleMark(y: .value("High threshold", 126))
-                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                .foregroundStyle(Color.orange.opacity(0.5))
+        let calendar = Calendar.current
+        let now = Date()
+        var comp = calendar.dateComponents([.year, .month, .day, .hour], from: now)
+        let currentHour = comp.hour ?? 0
 
-            ForEach(displayedEntries) { entry in
-                LineMark(x: .value("Time", entry.recordedAt), y: .value("mg/dL", entry.level))
-                    .foregroundStyle(Color(.label).opacity(0.6))
-                    .lineStyle(StrokeStyle(lineWidth: 2))
-                    .interpolationMethod(.catmullRom)
-                PointMark(x: .value("Time", entry.recordedAt), y: .value("mg/dL", entry.level))
-                    .foregroundStyle(entry.category.color)
-                    .symbolSize(48)
-            }
+        let startDate: Date
+        if currentHour < 6 {
+            let yesterday = calendar.date(byAdding: .day, value: -1, to: now)!
+            var yComp = calendar.dateComponents([.year, .month, .day], from: yesterday)
+            yComp.hour = 6; yComp.minute = 0; yComp.second = 0
+            startDate = calendar.date(from: yComp)!
+        } else {
+            comp.hour = 6; comp.minute = 0; comp.second = 0
+            startDate = calendar.date(from: comp)!
         }
-        .chartYScale(domain: 50...260)
-        .chartYAxis {
-            AxisMarks(values: [70, 100, 126, 180, 250]) { _ in
-                AxisGridLine().foregroundStyle(Color(.systemFill))
-                AxisValueLabel()
-                    .font(.system(.caption2, design: .rounded))
-                    .foregroundStyle(Color.secondary)
-            }
-        }
-        .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 5)) { _ in
-                AxisGridLine().foregroundStyle(Color(.systemFill))
-                AxisValueLabel(format: .dateTime.hour().minute())
-                    .font(.system(.caption2, design: .rounded))
-                    .foregroundStyle(Color.secondary)
-            }
-        }
-        .frame(height: 180)
-    }
+        let endDate = calendar.date(byAdding: .hour, value: 24, to: startDate)!
 
-    /// 7d / 30d: daily high-low range bars
-    private var bloodSugarChartRange: some View {
-        let ranges = dailyRanges
-        let xFormat: Date.FormatStyle = chartRange == .week
-            ? .dateTime.weekday(.abbreviated)
-            : .dateTime.month(.abbreviated).day()
+        let chartEntries = state.bloodSugarEntries
+            .filter { $0.recordedAt >= startDate && $0.recordedAt <= endDate }
+            .sorted { $0.recordedAt < $1.recordedAt }
 
         return Chart {
             RectangleMark(yStart: .value("Low", 70), yEnd: .value("High", 100))
@@ -216,22 +192,70 @@ struct DashboardView: View {
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
                 .foregroundStyle(Color.orange.opacity(0.5))
 
-            ForEach(ranges) { r in
-                // Vertical range line
-                RuleMark(x: .value("Day", r.date),
-                         yStart: .value("Low", r.low),
-                         yEnd: .value("High", r.high))
-                    .lineStyle(StrokeStyle(lineWidth: 2))
-                    .foregroundStyle(Color(.label).opacity(0.3))
+            ForEach(chartEntries) { entry in
+                if chartEntries.count > 1 {
+                    LineMark(x: .value("Time", entry.recordedAt), y: .value("mg/dL", entry.level))
+                        .foregroundStyle(Color(.label).opacity(0.6))
+                        .lineStyle(StrokeStyle(lineWidth: 2))
+                }
+                PointMark(x: .value("Time", entry.recordedAt), y: .value("mg/dL", entry.level))
+                    .foregroundStyle(entry.category.color)
+                    .symbolSize(entry.id == chartEntries.last?.id ? 100 : 44)
+            }
+            if let latest = chartEntries.last {
+                PointMark(x: .value("Time", latest.recordedAt), y: .value("mg/dL", latest.level))
+                    .symbolSize(280)
+                    .foregroundStyle(latest.category.color.opacity(0.18))
+            }
+        }
+        .chartYScale(domain: 50...260)
+        .chartXScale(domain: startDate...endDate)
+        .chartYAxis {
+            AxisMarks(values: [70, 100, 126, 180, 250]) { _ in
+                AxisGridLine().foregroundStyle(Color(.systemFill))
+                AxisValueLabel()
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.secondary)
+            }
+        }
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 5)) { _ in
+                AxisGridLine().foregroundStyle(Color(.systemFill))
+                AxisValueLabel(format: .dateTime.hour(.defaultDigits(amPM: .abbreviated)).minute())
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.secondary)
+            }
+        }
+        .frame(height: 180)
+        .padding(.trailing, 10)
+    }
 
-                // High point
-                PointMark(x: .value("Day", r.date), y: .value("mg/dL", r.high))
-                    .foregroundStyle(r.highCat.color)
-                    .symbolSize(48)
-                // Low point
-                PointMark(x: .value("Day", r.date), y: .value("mg/dL", r.low))
-                    .foregroundStyle(r.lowCat.color)
-                    .symbolSize(48)
+    /// 7d: continuous line connecting each reading, oldest → newest, most recent highlighted
+    private var bloodSugarChart7d: some View {
+        let entries = displayedEntries
+        return Chart {
+            RectangleMark(yStart: .value("Low", 70), yEnd: .value("High", 100))
+                .foregroundStyle(Color.green.opacity(0.07))
+            RuleMark(y: .value("Low threshold", 70))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                .foregroundStyle(Color.green.opacity(0.5))
+            RuleMark(y: .value("High threshold", 126))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                .foregroundStyle(Color.orange.opacity(0.5))
+
+            ForEach(entries) { entry in
+                LineMark(x: .value("Date", entry.recordedAt), y: .value("mg/dL", entry.level))
+                    .foregroundStyle(Color(.label).opacity(0.6))
+                    .lineStyle(StrokeStyle(lineWidth: 2))
+                    .interpolationMethod(.catmullRom)
+                PointMark(x: .value("Date", entry.recordedAt), y: .value("mg/dL", entry.level))
+                    .foregroundStyle(entry.category.color)
+                    .symbolSize(entry.id == entries.last?.id ? 100 : 40)
+            }
+            if let latest = entries.last {
+                PointMark(x: .value("Date", latest.recordedAt), y: .value("mg/dL", latest.level))
+                    .symbolSize(280)
+                    .foregroundStyle(latest.category.color.opacity(0.18))
             }
         }
         .chartYScale(domain: 50...260)
@@ -244,13 +268,64 @@ struct DashboardView: View {
             }
         }
         .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: chartRange == .week ? 7 : 6)) { _ in
+            AxisMarks(values: .automatic(desiredCount: 7)) { _ in
                 AxisGridLine().foregroundStyle(Color(.systemFill))
-                AxisValueLabel(format: xFormat)
+                AxisValueLabel(format: .dateTime.month(.abbreviated).day())
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(Color.secondary)
             }
         }
+        .frame(height: 180)
+    }
+
+    /// 30d: scrollable continuous line — ~7 days visible, scroll left for older readings
+    private var bloodSugarChart30d: some View {
+        let entries = displayedEntries
+        return Chart {
+            RectangleMark(yStart: .value("Low", 70), yEnd: .value("High", 100))
+                .foregroundStyle(Color.green.opacity(0.07))
+            RuleMark(y: .value("Low threshold", 70))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                .foregroundStyle(Color.green.opacity(0.5))
+            RuleMark(y: .value("High threshold", 126))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                .foregroundStyle(Color.orange.opacity(0.5))
+
+            ForEach(entries) { entry in
+                LineMark(x: .value("Date", entry.recordedAt), y: .value("mg/dL", entry.level))
+                    .foregroundStyle(Color(.label).opacity(0.6))
+                    .lineStyle(StrokeStyle(lineWidth: 2))
+                    .interpolationMethod(.catmullRom)
+                PointMark(x: .value("Date", entry.recordedAt), y: .value("mg/dL", entry.level))
+                    .foregroundStyle(entry.category.color)
+                    .symbolSize(entry.id == entries.last?.id ? 100 : 36)
+            }
+            if let latest = entries.last {
+                PointMark(x: .value("Date", latest.recordedAt), y: .value("mg/dL", latest.level))
+                    .symbolSize(280)
+                    .foregroundStyle(latest.category.color.opacity(0.18))
+            }
+        }
+        .chartYScale(domain: 50...260)
+        .chartYAxis {
+            AxisMarks(values: [70, 100, 126, 180, 250]) { _ in
+                AxisGridLine().foregroundStyle(Color(.systemFill))
+                AxisValueLabel()
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.secondary)
+            }
+        }
+        .chartXAxis {
+            AxisMarks(values: .stride(by: .day, count: 1)) { _ in
+                AxisGridLine().foregroundStyle(Color(.systemFill))
+                AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.secondary)
+            }
+        }
+        .chartScrollableAxes(.horizontal)
+        .chartXVisibleDomain(length: 7 * 24 * 3600)
+        .chartScrollPosition(x: $chart30dPosition)
         .frame(height: 180)
     }
 
@@ -355,7 +430,7 @@ struct DashboardView: View {
                         }
                         Spacer()
                         VStack(alignment: .trailing, spacing: 2) {
-                            Text(entry.loggedAt, style: .time)
+                            Text(entry.loggedAt.formatted(.dateTime.hour(.defaultDigits(amPM: .abbreviated)).minute()))
                                 .font(.system(.caption, design: .rounded))
                                 .foregroundStyle(.secondary)
                             HStack(spacing: 6) {
@@ -422,39 +497,15 @@ struct DashboardView: View {
         let now = Date()
         let cutoff: Date
         switch chartRange {
-        case .day:   cutoff = Calendar.current.date(byAdding: .hour, value: -24, to: now)!
+        case .day:   cutoff = Calendar.current.startOfDay(for: now)
         case .week:  cutoff = Calendar.current.date(byAdding: .day,  value: -7,  to: now)!
         case .month: cutoff = Calendar.current.date(byAdding: .day,  value: -30, to: now)!
         }
         return state.bloodSugarEntries
-            .filter { $0.recordedAt >= cutoff }
+            .filter { $0.recordedAt >= cutoff && $0.recordedAt <= now }
             .sorted { $0.recordedAt < $1.recordedAt }
     }
 
-    /// For 7d/30d: compute daily high and low pairs
-    private struct DailyRange: Identifiable {
-        let id = UUID()
-        let date: Date      // noon of that day (common x-axis position)
-        let high: Double
-        let low: Double
-        let highCat: BloodSugarEntry.Category
-        let lowCat: BloodSugarEntry.Category
-    }
-
-    private var dailyRanges: [DailyRange] {
-        let cal = Calendar.current
-        let grouped = Dictionary(grouping: displayedEntries) { entry in
-            cal.startOfDay(for: entry.recordedAt)
-        }
-        return grouped.map { (day, entries) in
-            let sorted = entries.sorted { $0.level < $1.level }
-            let lo = sorted.first!
-            let hi = sorted.last!
-            let noon = cal.date(bySettingHour: 12, minute: 0, second: 0, of: day) ?? day
-            return DailyRange(date: noon, high: hi.level, low: lo.level,
-                              highCat: hi.category, lowCat: lo.category)
-        }.sorted { $0.date < $1.date }
-    }
 }
 
 // MARK: - Supporting Views
@@ -567,6 +618,7 @@ struct BloodSugarEntrySheet: View {
 
     @State private var levelText = ""
     @State private var context: BloodSugarEntry.MealContext = .fasting
+    @State private var recordedAt: Date = Date()
 
     private var level: Double? {
         guard let d = Double(levelText), d > 0 else { return nil }
@@ -638,6 +690,13 @@ struct BloodSugarEntrySheet: View {
                         .pickerStyle(.inline)
                         .labelsHidden()
                     }
+                    Section("Time") {
+                        DatePicker("Time", selection: $recordedAt,
+                                   in: ...Date(),
+                                   displayedComponents: [.date, .hourAndMinute])
+                            .labelsHidden()
+                            .font(.system(.body, design: .rounded))
+                    }
                 }
             }
             .navigationTitle("Log Blood Sugar")
@@ -649,7 +708,7 @@ struct BloodSugarEntrySheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         guard let l = level else { return }
-                        onSave(BloodSugarEntry(level: l, context: context))
+                        onSave(BloodSugarEntry(level: l, context: context, recordedAt: recordedAt))
                         dismiss()
                     }
                     .fontWeight(.semibold)
@@ -727,14 +786,22 @@ struct QuickFoodEntrySheet: View {
 // MARK: - Calendar Picker Sheet
 
 struct CalendarPickerSheet: View {
-    @Binding var selectedDate: Date
+    let initialDate: Date
+    let onSelect: (Date) -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var date: Date
+
+    init(initialDate: Date, onSelect: @escaping (Date) -> Void) {
+        self.initialDate = initialDate
+        self.onSelect    = onSelect
+        self._date       = State(initialValue: initialDate)
+    }
 
     var body: some View {
         NavigationStack {
             VStack {
                 DatePicker("Select Date",
-                           selection: $selectedDate,
+                           selection: $date,
                            in: ...Date(),
                            displayedComponents: .date)
                     .datePickerStyle(.graphical)
@@ -745,9 +812,15 @@ struct CalendarPickerSheet: View {
             .navigationTitle("Select Date")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                        .fontWeight(.semibold)
+                    Button("Done") {
+                        onSelect(date)
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
                 }
             }
         }
@@ -896,6 +969,22 @@ private struct AnalyzeSection: View {
 @MainActor
 struct DashboardView_Previews: PreviewProvider {
     static var previews: some View {
-        DashboardView().environmentObject(AppState())
+        let s = AppState()
+        let today = Calendar.current.startOfDay(for: Date())
+        // 24h data points
+        s.logBloodSugar(BloodSugarEntry(level: 160, context: .afterMeal,  recordedAt: today + 7 * 3600))    // 7 AM today
+        s.logBloodSugar(BloodSugarEntry(level: 150, context: .fasting,    recordedAt: today + 10 * 3600))  // 10 AM today
+        // Past days before 6 AM (for 7d / 30d views)
+        s.logBloodSugar(BloodSugarEntry(level: 110, context: .fasting,    recordedAt: today - 1 * 86400 + 3 * 3600))
+        s.logBloodSugar(BloodSugarEntry(level: 145, context: .afterMeal,  recordedAt: today - 2 * 86400 + 2 * 3600))
+        s.logBloodSugar(BloodSugarEntry(level: 97,  context: .beforeMeal, recordedAt: today - 3 * 86400 + 4 * 3600))
+        s.logBloodSugar(BloodSugarEntry(level: 88,  context: .fasting,    recordedAt: today - 4 * 86400 + 1 * 3600))
+        s.logBloodSugar(BloodSugarEntry(level: 123, context: .afterMeal,  recordedAt: today - 5 * 86400 + 5 * 3600))
+        s.logBloodSugar(BloodSugarEntry(level: 76,  context: .fasting,    recordedAt: today - 6 * 86400 + 2 * 3600))
+        s.logBloodSugar(BloodSugarEntry(level: 133, context: .afterMeal,  recordedAt: today - 10 * 86400 + 3 * 3600))
+        s.logBloodSugar(BloodSugarEntry(level: 99,  context: .fasting,    recordedAt: today - 15 * 86400 + 4 * 3600))
+        s.logBloodSugar(BloodSugarEntry(level: 155, context: .afterMeal,  recordedAt: today - 20 * 86400 + 2 * 3600))
+        s.logBloodSugar(BloodSugarEntry(level: 81,  context: .fasting,    recordedAt: today - 25 * 86400 + 5 * 3600))
+        return DashboardView().environmentObject(s)
     }
 }
