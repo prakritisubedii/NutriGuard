@@ -103,7 +103,7 @@ struct RealFoodCheckService: FoodCheckService {
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("Bearer \(Secrets.nvidiaKey)", forHTTPHeaderField: "Authorization")
         let body: [String: Any] = [
-            "model": "deepseek-ai/deepseek-v4-pro",
+            "model": "meta/llama-3.1-8b-instruct",
             "messages": [["role": "user", "content": prompt]],
             "temperature": 0.7,
             "max_tokens": 500,
