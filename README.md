@@ -11,7 +11,7 @@
 
 ## Demo
 
-[![NutriGuard Demo](https://cdn.loom.com/sessions/thumbnails/70855f60276a4ea0959709f03f0b5eb8-with-play.gif)](https://www.loom.com/share/70855f60276a4ea0959709f03f0b5eb8)
+https://www.loom.com/share/70855f60276a4ea0959709f03f0b5eb8
 
 ---
 
