@@ -185,6 +185,9 @@ private struct EntryRow: View {
     }
 }
 
-#Preview {
-    TrackerView().environmentObject(AppState())
+@MainActor
+struct TrackerView_Previews: PreviewProvider {
+    static var previews: some View {
+        TrackerView().environmentObject(AppState())
+    }
 }

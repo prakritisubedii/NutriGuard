@@ -83,6 +83,57 @@ struct FoodEntry: Identifiable, Codable, Equatable, Hashable {
     var loggedAt: Date = Date()
 }
 
+// MARK: - Blood Sugar
+
+struct BloodSugarEntry: Identifiable, Codable {
+    var id: UUID = UUID()
+    var level: Double          // mg/dL
+    var recordedAt: Date = Date()
+    var context: MealContext = .fasting
+
+    init(level: Double, context: MealContext = .fasting, recordedAt: Date = Date()) {
+        self.level      = level
+        self.context    = context
+        self.recordedAt = recordedAt
+    }
+
+    enum MealContext: String, CaseIterable, Codable {
+        case fasting    = "Fasting"
+        case beforeMeal = "Before Meal"
+        case afterMeal  = "After Meal"
+        case bedtime    = "Bedtime"
+    }
+
+    enum Category {
+        case low, normal, elevated, high
+
+        var label: String {
+            switch self {
+            case .low:      return "Low"
+            case .normal:   return "Normal"
+            case .elevated: return "Pre-High"
+            case .high:     return "High"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .low:      return Color(red: 0.23, green: 0.51, blue: 0.96)
+            case .normal:   return Color(red: 0.13, green: 0.72, blue: 0.37)
+            case .elevated: return Color(red: 0.96, green: 0.62, blue: 0.05)
+            case .high:     return Color(red: 0.94, green: 0.27, blue: 0.27)
+            }
+        }
+    }
+
+    var category: Category {
+        if level < 70  { return .low }
+        if level < 100 { return .normal }
+        if level < 126 { return .elevated }
+        return .high
+    }
+}
+
 // MARK: - AI Verdict
 
 /// The verdict shown on the Home screen after asking "Can I eat ___?"

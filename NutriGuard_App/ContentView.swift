@@ -2,30 +2,33 @@
 //  ContentView.swift
 //  NutriGuard_App
 //
-//  Root tab container. Three tabs: Ask, Today, Profile.
+//  Root tab container.
+//  Tab order: Health (default) · Ask AI · Profile
 //
 
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var state = AppState()
-
     var body: some View {
         TabView {
-            HomeView()
-                .tabItem { Label("Ask", systemImage: "text.bubble.fill") }
+            DashboardView()
+                .tabItem { Label("Health", systemImage: "waveform.path.ecg") }
 
-            TrackerView()
-                .tabItem { Label("Today", systemImage: "chart.pie.fill") }
+            HomeView()
+                .tabItem { Label("Ask AI", systemImage: "sparkles") }
 
             ProfileView()
                 .tabItem { Label("Profile", systemImage: "person.crop.circle.fill") }
         }
         .tint(.green)
-        .environmentObject(state)
     }
 }
 
-#Preview {
-    ContentView()
+@MainActor
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+            .environmentObject(AppState())
+            .environmentObject(AuthState())
+    }
 }
