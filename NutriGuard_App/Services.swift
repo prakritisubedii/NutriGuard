@@ -60,7 +60,7 @@ final class AppState: ObservableObject {
 
     init(profileStore: ProfileStore = UserDefaultsProfileStore(),
          tracker: FoodTracker = InMemoryFoodTracker(),
-         checker: FoodCheckService = RealFoodCheckService()) {
+         checker: FoodCheckService = MockFoodCheckService()) {
         self.profileStore = profileStore
         self.tracker = tracker
         self.checker = checker
@@ -99,6 +99,7 @@ final class AppState: ObservableObject {
                 todaysIntake: totals
             )
         } catch {
+            print("❌ FoodCheckService error: \(error)")
             lastResult = FoodCheckResult(
                 foodName: question,
                 verdict: .caution,

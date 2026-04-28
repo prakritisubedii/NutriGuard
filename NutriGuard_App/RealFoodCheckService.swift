@@ -97,7 +97,7 @@ struct RealFoodCheckService: FoodCheckService {
         {"verdict": "yes" or "caution" or "no", "reason": "2-3 sentence personalized explanation referencing their specific conditions and remaining limits"}
         """
 
-        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=\(Secrets.geminiKey)")!
+        let url = URL(string: "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=\(Secrets.geminiKey)")!
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -105,6 +105,7 @@ struct RealFoodCheckService: FoodCheckService {
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, _) = try await URLSession.shared.data(for: req)
+        print("🔵 Gemini raw response: \(String(data: data, encoding: .utf8) ?? "nil")")
         let gemini = try JSONDecoder().decode(GeminiResponse.self, from: data)
 
         guard let raw = gemini.candidates.first?.content.parts.first?.text else {
