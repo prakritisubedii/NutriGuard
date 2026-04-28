@@ -238,6 +238,9 @@ private struct NutrientPill: View {
     }
 }
 
-#Preview {
-    HomeView().environmentObject(AppState())
+@MainActor
+struct HomeView_Previews: PreviewProvider {
+    static var previews: some View {
+        HomeView().environmentObject(AppState())
+    }
 }

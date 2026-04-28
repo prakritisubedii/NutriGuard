@@ -10,6 +10,7 @@ import SwiftUI
 
 struct ProfileView: View {
     @EnvironmentObject private var state: AppState
+    @EnvironmentObject private var auth: AuthState
     @State private var draft: UserProfile = UserProfile()
     @State private var loaded = false
 
@@ -66,6 +67,19 @@ struct ProfileView: View {
                     }
                     .disabled(draft == state.profile)
                 }
+
+                Section {
+                    Button(role: .destructive) {
+                        auth.logout()
+                    } label: {
+                        HStack {
+                            Spacer()
+                            Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+                                .fontWeight(.semibold)
+                            Spacer()
+                        }
+                    }
+                }
             }
             .navigationTitle("Profile")
             .onAppear {
@@ -113,6 +127,11 @@ private struct LimitStepper: View {
     }
 }
 
-#Preview {
-    ProfileView().environmentObject(AppState())
+@MainActor
+struct ProfileView_Previews: PreviewProvider {
+    static var previews: some View {
+        ProfileView()
+            .environmentObject(AppState())
+            .environmentObject(AuthState())
+    }
 }
