@@ -69,13 +69,11 @@ The app has a narrow but useful scope. The main features are food checking, pers
 
 ### Demo Day Video Walkthrough
 
-
-*Placeholder for Demo Day Video Link*
-
+https://youtu.be/mEg-hrLloY8
 ---
 
 ### Build Sprint Progress (GIFs)
-
+https://github.com/user-attachments/assets/b7793409-43ab-480c-8ce3-da0d5ed15068
 ---
 
 ### 2. Screen Archetypes
