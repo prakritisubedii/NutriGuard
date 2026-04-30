@@ -44,7 +44,7 @@ The app has a narrow but useful scope. The main features are food checking, pers
 
 ### 1. User Stories
 
-#### Required Must-have Stories
+#### Completed User Stories (Current Build Sprint)
 
 - [x] User can enter a food question such as "Can I eat mac and cheese?"
 - [x] User can receive a verdict explaining whether the food is okay for them.
@@ -54,10 +54,10 @@ The app has a narrow but useful scope. The main features are food checking, pers
 - [x] User can set or update their profile information.
 - [x] User can select health conditions such as diabetes or hypertension.
 - [x] User can set daily limits for sugar, sodium, and calories.
-
-#### Optional Nice-to-have Stories
-
 - [x] User can save food entries across app sessions.
+
+#### Pending User Stories
+
 - [ ] User can view weekly or monthly nutrition trends.
 - [ ] User can scan a barcode to look up food.
 - [ ] User can save favorite foods.
