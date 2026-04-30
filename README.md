@@ -46,24 +46,35 @@ The app has a narrow but useful scope. The main features are food checking, pers
 
 #### Required Must-have Stories
 
-- User can enter a food question such as "Can I eat mac and cheese?"
-- User can receive a verdict explaining whether the food is okay for them.
-- User can view sugar, sodium, and calorie information for a food.
-- User can track today's sugar, sodium, and calorie intake.
-- User can view daily progress toward nutrition limits.
-- User can set or update their profile information.
-- User can select health conditions such as diabetes or hypertension.
-- User can set daily limits for sugar, sodium, and calories.
+- [x] User can enter a food question such as "Can I eat mac and cheese?"
+- [x] User can receive a verdict explaining whether the food is okay for them.
+- [x] User can view sugar, sodium, and calorie information for a food.
+- [x] User can track today's sugar, sodium, and calorie intake.
+- [x] User can view daily progress toward nutrition limits.
+- [x] User can set or update their profile information.
+- [x] User can select health conditions such as diabetes or hypertension.
+- [x] User can set daily limits for sugar, sodium, and calories.
 
 #### Optional Nice-to-have Stories
 
-- User can save food entries across app sessions.
-- User can view weekly or monthly nutrition trends.
-- User can scan a barcode to look up food.
-- User can save favorite foods.
-- User can receive warning notifications when close to a daily limit.
-- User can get healthier food alternatives from AI.
-- User can share a food report with a doctor or caregiver.
+- [x] User can save food entries across app sessions.
+- [ ] User can view weekly or monthly nutrition trends.
+- [ ] User can scan a barcode to look up food.
+- [ ] User can save favorite foods.
+- [ ] User can receive warning notifications when close to a daily limit.
+- [ ] User can get healthier food alternatives from AI.
+- [ ] User can share a food report with a doctor or caregiver.
+
+---
+
+### Demo Day Video Walkthrough
+
+
+*Placeholder for Demo Day Video Link*
+
+---
+
+### Build Sprint Progress (GIFs)
 
 ---
 
